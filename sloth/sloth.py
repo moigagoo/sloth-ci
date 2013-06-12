@@ -1,5 +1,13 @@
+"""
+**************
+sloth.Sloth
+**************
+
+This module contains the :class:`Sloth <Sloth>` class.
+"""
+
+
 from subprocess import Popen, TimeoutExpired
-from datetime import datetime
 from argparse import ArgumentParser
 from json import loads
 from threading import Thread
@@ -38,7 +46,7 @@ class Sloth:
         self.processing_logger = self.logger.getChild('processing')
 
         self.queue = []
-        self._queue_lock = False
+        self.queue_lock = False
 
         self.queue_processor = Thread(target=self.process_queue, name=self.name)
         self._processor_lock = False
@@ -134,7 +142,7 @@ class Sloth:
                     for node in self.config['nodes']:
                         self.broadcast(payload, node)
 
-            elif self._queue_lock:
+            elif self.queue_lock:
                 return True
 
             else:
@@ -145,7 +153,7 @@ class Sloth:
 
         New payloads are not added to the queue, existing actions will be finished.
         """
-        self._queue_lock = True
+        self.queue_lock = True
         self.logger.info('Stopped.')
 
     def kill(self):
@@ -155,57 +163,3 @@ class Sloth:
 
         self._processor_lock = True
         self.logger.warning('Killed.')
-
-    @cherrypy.expose
-    def listener(self, payload, orig=True):
-        """Listens to Bitbucket commit payloads.
-
-        :param payload: Bitbucket commit payload
-        """
-
-        if not cherrypy.request.method == 'POST':
-            raise cherrypy.HTTPError(405)
-
-        if not self.validate_bb_payload(payload):
-            raise cherrypy.HTTPError(400)
-
-        self.logger.info('Payload received')
-
-        if not self._queue_lock:
-            self.queue.append((payload, orig))
-
-
-def run(server_config, sloths):
-    """Runs CherryPy loop to listen for payload."""
-
-    cherrypy.config.update({
-        'server.socket_host': server_config['host'],
-        'server.socket_port': server_config['port']
-    })
-
-    for sloth in sloths:
-        cherrypy.tree.mount(sloth.listener, sloth.config['listen_to'])
-        sloth.logger.info('Mounted')
-
-        cherrypy.engine.autoreload.files.add(sloth.config.config_file)
-
-        cherrypy.engine.subscribe('stop', sloth.stop)
-
-    cherrypy.engine.start()
-    cherrypy.engine.block()
-
-
-def main():
-
-    parser = ArgumentParser()
-    parser.add_argument('configs', nargs='+')
-
-    config_files = parser.parse_args().configs
-    sloths = [Sloth(configs.load(_, 'default.conf')) for _ in config_files]
-
-    server_config = configs.load('server.conf')
-
-    run(server_config, sloths)
-
-if __name__ == '__main__':
-    main()
