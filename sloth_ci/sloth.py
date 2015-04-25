@@ -1,4 +1,4 @@
-﻿from subprocess import Popen, PIPE, TimeoutExpired
+﻿from subprocess import Popen, PIPE
 from threading import Thread
 from os.path import splitext, basename, abspath, join
 from collections import deque
@@ -225,16 +225,6 @@ class Sloth:
             self.exec_logger.info('Finished')
             
             return True
-
-        except TimeoutExpired:
-            process.kill()
-
-            stdout, stderr = process.communicate()
-            
-            self.exec_logger.debug(bytes.decode(stdout))
-            self.exec_logger.debug(bytes.decode(stderr))
-
-            raise
 
         except Exception:
             raise
