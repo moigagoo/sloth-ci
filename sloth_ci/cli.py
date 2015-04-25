@@ -26,7 +26,7 @@ Options:
 
 from sys import exit
 
-from os.path import abspath
+from os.path import abspath, isfile
 from glob import glob 
 from time import ctime
 
@@ -76,14 +76,14 @@ def colorize(table):
 
 class CLI:
     def __init__(self, config_file):
+        if not isfile(config_file):
+            print('Either put "sloth.yml" in this directory or pick a config file with "-c."')
+            exit()
+        
         try:
             self.config = load(open(config_file))
             
             self.api = API(self.config)
-
-        except FileNotFoundError:
-            print('Either put "sloth.yml" in this directory or pick a config file with "-c."')
-            exit()
 
         except Exception as e:
             print('Failed to parse the config file: %s' % e)
